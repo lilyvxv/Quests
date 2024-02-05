@@ -124,7 +124,9 @@ public class CachingDatabase {
                         completeQuest(player, activeQuest);
                         activeQuest.handler.issueReward(player);
                     } else {
-                        cacheNext.add(player);
+                        if (!cacheNext.contains(player)) {
+                            cacheNext.add(player);
+                        }
                     }
 
                     return;

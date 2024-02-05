@@ -16,8 +16,10 @@ public class TickStartListener implements Listener {
     private void onTickStart(ServerTickStartEvent event) {
         if (ticks == CONFIG.saveInterval) {
             plugin.getServer().getScheduler().runTaskAsynchronously(plugin, () -> {
-                cachingDatabase.cachePlayers(cachingDatabase.cacheNext);
-                cachingDatabase.cacheNext.clear();
+                if (cachingDatabase.cacheNext.size() > 0) {
+                    cachingDatabase.cachePlayers(cachingDatabase.cacheNext);
+                    cachingDatabase.cacheNext.clear();
+                }
             });
 
             ticks = 0;
