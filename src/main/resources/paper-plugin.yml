@@ -1,0 +1,4 @@
+name: Quests
+version: '${version}'
+main: me.github.lilyvxv.quests.Quests
+api-version: '1.20'
