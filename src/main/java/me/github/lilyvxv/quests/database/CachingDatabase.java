@@ -19,6 +19,7 @@ public class CachingDatabase {
     private MongoDBManager mongoDBManager;
     private Database externalDatabase;
     private final Backend backend;
+    public static List<Player> cacheNext = new ArrayList<>();
 
     public CachingDatabase(Backend backend) {
         this.backend = backend;
@@ -216,8 +217,8 @@ public class CachingDatabase {
         cachePlayer(player);
     }
 
-    public void saveAllOnline() {
-        List<PlayerInfo> playerInfoList = plugin.getServer().getOnlinePlayers()
+    public void cachePlayers(Collection<Player> players) {
+        List<PlayerInfo> playerInfoList = players
                 .stream()
                 .map(cachingDatabase::fetchPlayerRecord).toList();
 
@@ -238,6 +239,6 @@ public class CachingDatabase {
     }
 
     public void onServerStop() {
-        saveAllOnline();
+        cachePlayers((Collection<Player>) plugin.getServer().getOnlinePlayers());
     }
 }
