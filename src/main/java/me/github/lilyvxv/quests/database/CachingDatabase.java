@@ -123,6 +123,8 @@ public class CachingDatabase {
                     if (activeQuest.questProgress >= 100) {
                         completeQuest(player, activeQuest);
                         activeQuest.handler.issueReward(player);
+                    } else {
+                        cacheNext.add(player);
                     }
 
                     return;
