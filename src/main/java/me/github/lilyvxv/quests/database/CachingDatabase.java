@@ -149,6 +149,8 @@ public class CachingDatabase {
 
                 playerInfo.activeQuests = activeQuests;
                 playerInfo.completedQuests = completedQuests;
+
+                cachePlayer(player);
             }
         }
     }
@@ -200,7 +202,7 @@ public class CachingDatabase {
         }
     }
 
-    public void onPlayerLeave(Player player) {
+    public void cachePlayer(Player player) {
         PlayerInfo playerInfo = cachingDatabase.fetchPlayerRecord(player);
 
         if (Objects.equals(backend, Backend.MONGODB)) {
@@ -208,6 +210,10 @@ public class CachingDatabase {
         } else if (Objects.equals(backend, Backend.EXTERNAL)) {
             externalDatabase.updatePlayerRecordAsync(playerInfo);
         }
+    }
+
+    public void onPlayerLeave(Player player) {
+        cachePlayer(player);
     }
 
     public void saveAllOnline() {

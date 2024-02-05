@@ -5,6 +5,6 @@ messages:
 database:
   save_interval: 100
   backend: "MONGODB"
-  connection_uri: "mongodb://admin:m6Ciqm9cuNzmWw7QDrYrVqf7sbZVbRejn4h8@158.101.3.187:27017"
+  connection_uri: "mongodb://username:password@host:port"
   table_name: "player_data"
   database_name: "quests"
