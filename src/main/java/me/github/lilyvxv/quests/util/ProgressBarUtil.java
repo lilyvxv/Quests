@@ -1,15 +1,14 @@
 package me.github.lilyvxv.quests.util;
 
-import static me.github.lilyvxv.quests.Quests.LOGGER;
-
 public class ProgressBarUtil {
 
     public static String generateProgressBar(int progress) {
-        if (progress < 0 || progress > 100) {
-            LOGGER.warning("Invalid progress bar value. Progress should be between 0 and 100.");
-            return "";
-        }
+//        if (progress < 0 || progress > 100) {
+//            logger.warning("Invalid progress bar value. Progress should be between 0 and 100.");
+//            return "";
+//        }
 
+        progress = Math.min(progress, 100);
         int barCount = progress / 10;
 
         StringBuilder progressBarBuilder = new StringBuilder("<white>[</white><yellow>");

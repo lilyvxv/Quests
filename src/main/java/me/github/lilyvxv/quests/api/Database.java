@@ -1,19 +1,42 @@
 package me.github.lilyvxv.quests.api;
 
 import me.github.lilyvxv.quests.structs.PlayerInfo;
+import me.github.lilyvxv.quests.structs.QuestInfo;
 import org.bukkit.entity.Player;
 
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
 
 public interface Database {
 
     void register();
 
-    CompletableFuture<Void> createPlayerRecord(Player player);
+    // Player cache methods and fields
+    Map<UUID, PlayerInfo> playerInfoCache = new ConcurrentHashMap<>();
 
-    CompletableFuture<PlayerInfo> fetchPlayerRecordAsync(Player player);
+    List<Player> cacheNext = new ArrayList<>();
 
-    CompletableFuture<Void> updatePlayerRecordAsync(PlayerInfo playerInfo);
+    // Database methods
+    void onPlayerJoin(Player player);
 
-    CompletableFuture<Boolean> playerHasRecordAsync(Player player);
+    void cachePlayer(Player player);
+
+    void cachePlayers(Collection<Player> players);
+
+    void createPlayerRecord(Player player);
+
+    PlayerInfo fetchPlayerRecord(Player player);
+
+    void updateQuestProgress(Player player, QuestInfo quest, double progress);
+
+    void completeQuest(Player player, QuestInfo quest);
+
+    boolean playerHasCompletedQuest(Player player, QuestInfo quest);
+
+    QuestInfo getQuestFromPlayer(Player player, QuestInfo quest);
+
+    void addQuestToPlayer(Player player, QuestInfo quest);
+
+    boolean playerHasQuestEnabled(Player player, QuestInfo quest);
 }

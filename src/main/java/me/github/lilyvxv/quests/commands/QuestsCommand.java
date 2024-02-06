@@ -5,8 +5,6 @@ import dev.jorel.commandapi.executors.CommandArguments;
 import me.github.lilyvxv.quests.menus.QuestListMenu;
 import org.bukkit.entity.Player;
 
-import static me.github.lilyvxv.quests.Quests.LOGGER;
-
 public class QuestsCommand {
 
     public QuestsCommand() {

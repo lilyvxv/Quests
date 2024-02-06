@@ -13,6 +13,6 @@ public class PlayerJoinListener implements Listener {
     @EventHandler(priority = EventPriority.MONITOR)
     private void onPlayerJoin(PlayerJoinEvent event) {
         // Check if the player has a record in the database
-        cachingDatabase.onPlayerJoin(event.getPlayer());
+        database.onPlayerJoin(event.getPlayer());
     }
 }

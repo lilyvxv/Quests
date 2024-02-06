@@ -1,7 +1,8 @@
 package me.github.lilyvxv.quests.util;
 
-import me.github.lilyvxv.quests.api.Database;
+import me.github.lilyvxv.quests.Quests;
 import me.github.lilyvxv.quests.database.Backend;
+import me.github.lilyvxv.quests.database.CachingDatabase;
 import me.github.lilyvxv.quests.structs.QuestInfo;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.minimessage.tag.resolver.TagResolver;
@@ -16,17 +17,13 @@ import static me.github.lilyvxv.quests.Quests.*;
 
 public class ConfigUtil {
 
-    public static Map<String, Component> PLUGIN_MESSAGE = new HashMap<>();
-    public static List<QuestInfo> AVAILABLE_QUESTS = new ArrayList<>();
-    public static String PLUGIN_PREFIX;
     private final FileConfiguration config;
 
-    public static int saveInterval;
-    public static Backend backend;
-    public static String connectionUri;
-    public static String tableName;
-    public static String databaseName;
-    public Database externalDatabase;
+    public Map<String, Component> pluginMessages = new HashMap<>();
+    public String pluginPrefix;
+    public List<QuestInfo> availableQuests = new ArrayList<>();
+
+    public int saveInterval;
 
     public ConfigUtil(FileConfiguration config) {
         this.config = config;
@@ -38,23 +35,28 @@ public class ConfigUtil {
         loadConfig(plugin.getConfig());
     }
 
-    public static void loadConfig(Configuration configuration) {
+    public void loadConfig(Configuration configuration) {
         // Load basic config options from the config.yml file
-        PLUGIN_PREFIX = configuration.getString("prefix", "[Quests] ");
+        pluginPrefix = configuration.getString("prefix", "[Quests] ");
 
         loadDatabaseConnection(configuration);
         loadMessages(configuration);
     }
 
-    public static void loadDatabaseConnection(Configuration configuration) {
+    public void loadDatabaseConnection(Configuration configuration) {
         ConfigurationSection databaseSection = configuration.getConfigurationSection("database");
+        assert databaseSection != null;
+
         saveInterval = databaseSection.getInt("save_interval");
-        backend = Backend.valueOf(databaseSection.getString("backend"));
+        Backend backend = Backend.valueOf(databaseSection.getString("backend"));
 
         if (backend == Backend.MONGODB) {
-            connectionUri = databaseSection.getString("connection_uri");
-            databaseName = databaseSection.getString("database_name");
-            tableName = databaseSection.getString("table_name");
+            String connectionUri = databaseSection.getString("connection_uri");
+            String databaseName = databaseSection.getString("database_name");
+            String tableName = databaseSection.getString("table_name");
+            Quests.database = new CachingDatabase(connectionUri, databaseName, tableName);
+        } else if (backend == Backend.EXTERNAL) {
+
         }
     }
 
@@ -110,7 +112,7 @@ public class ConfigUtil {
 //        return new QuestInfo(questId, questName, questProgress, goalType, goalMaterial, goalQuantity, itemName, itemMaterial, menuLoreLines);
 //    }
 
-    private static void loadMessages(Configuration configuration) {
+    private void loadMessages(Configuration configuration) {
         ConfigurationSection messagesSection = configuration.getConfigurationSection("messages");
         if (messagesSection == null) {
             return;
@@ -118,17 +120,17 @@ public class ConfigUtil {
 
         for (String key : messagesSection.getKeys(false)) {
             String path = "messages." + key;
-            Component message = MINI_MESSAGE.deserialize(configuration.getString(path, ""));
-            PLUGIN_MESSAGE.put(key, message);
+            Component message = miniMessage.deserialize(configuration.getString(path, ""));
+            pluginMessages.put(key, message);
         }
     }
 
     public Component getMessage(String key, @NotNull TagResolver... tagResolvers) {
-        return MINI_MESSAGE
-                .deserialize(config.getString("messages." + key), tagResolvers);
+        return miniMessage.deserialize(config.getString("messages." + key), tagResolvers);
     }
+
     public QuestInfo getQuestById(String questId) {
-        for (QuestInfo quest : AVAILABLE_QUESTS) {
+        for (QuestInfo quest : availableQuests) {
             if (Objects.equals(quest.questId, questId)) {
                 return quest;
             }
@@ -137,7 +139,7 @@ public class ConfigUtil {
     }
 
     public void addQuest(QuestInfo questInfo) {
-        AVAILABLE_QUESTS.add(questInfo);
+        availableQuests.add(questInfo);
     }
 }
 

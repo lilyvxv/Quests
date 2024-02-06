@@ -1,34 +1,26 @@
 package me.github.lilyvxv.quests.database;
 
 import me.github.lilyvxv.quests.api.Database;
-import me.github.lilyvxv.quests.database.mongodb.MongoDBManager;
 import me.github.lilyvxv.quests.structs.PlayerInfo;
 import me.github.lilyvxv.quests.structs.QuestInfo;
 import org.bukkit.entity.Player;
 
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 
 import static me.github.lilyvxv.quests.Quests.*;
 
-public class CachingDatabase {
+public class CachingDatabase implements Database {
 
-    private final Map<UUID, PlayerInfo> playerInfoCache = new ConcurrentHashMap<>();
-    private MongoDBManager mongoDBManager;
-    private Database externalDatabase;
-    private final Backend backend;
-    public static List<Player> cacheNext = new ArrayList<>();
+    private final MongoDatabase mongoDatabase;
 
-    public CachingDatabase(Backend backend) {
-        this.backend = backend;
+    public CachingDatabase(String connectionUri, String databaseName, String tableName) {
+        this.mongoDatabase = new MongoDatabase(connectionUri, databaseName, tableName);
+    }
 
-        if (this.backend == Backend.MONGODB) {
-            mongoDBManager = new MongoDBManager(CONFIG.connectionUri, CONFIG.databaseName, CONFIG.tableName);
-        } else if (this.backend == Backend.EXTERNAL) {
-            externalDatabase = CONFIG.externalDatabase;
-        }
+    public void register () {
+
     }
 
     public void createPlayerRecord(Player player) {
@@ -55,12 +47,6 @@ public class CachingDatabase {
             playerInfo.completedQuests = new ArrayList<>(playerInfo.completedQuests);
         }
         return playerInfo;
-    }
-
-    public boolean playerHasRecord(Player player) {
-        // Check if a player has the record in the database by their UUID
-        UUID playerUUID = player.getUniqueId();
-        return playerInfoCache.containsKey(playerUUID);
     }
 
     public void addQuestToPlayer(Player player, QuestInfo quest) {
@@ -124,9 +110,13 @@ public class CachingDatabase {
                         completeQuest(player, activeQuest);
                         activeQuest.handler.issueReward(player);
                     } else {
-                        if (!cacheNext.contains(player)) {
+                        if (!cacheNext.contains(player) && !quest.bypassesCache) {
                             cacheNext.add(player);
                         }
+                    }
+
+                    if (quest.bypassesCache) {
+                        cachePlayer(player);
                     }
 
                     return;
@@ -176,73 +166,38 @@ public class CachingDatabase {
     }
 
     public void onPlayerJoin(Player player) {
-        if (Objects.equals(backend, Backend.MONGODB)) {
-            try {
-                boolean playerExists = mongoDBManager.playerHasRecordAsync(player)
-                        .get();
+        try {
+            boolean playerExists = mongoDatabase.playerHasRecordAsync(player)
+                    .get();
 
-                if (!playerExists) {
-                    mongoDBManager.createPlayerRecordAsync(player);
-                    cachingDatabase.createPlayerRecord(player);
-                } else {
-                    cachingDatabase.loadPlayerRecord(player, mongoDBManager.fetchPlayerRecordAsync(player).get());
-                }
-            } catch (ExecutionException | InterruptedException e) {
-                LOGGER.severe("Error with MongoDB: " + e);
+            if (!playerExists) {
+                mongoDatabase.createPlayerRecordAsync(player);
+                this.createPlayerRecord(player);
+            } else {
+                loadPlayerRecord(player, mongoDatabase.fetchPlayerRecordAsync(player).get());
             }
-        } else if (Objects.equals(backend, Backend.EXTERNAL)) {
-            try {
-                boolean playerExists = externalDatabase.playerHasRecordAsync(player)
-                        .get();
-
-                if (!playerExists) {
-                    externalDatabase.createPlayerRecord(player);
-                    cachingDatabase.createPlayerRecord(player);
-                } else {
-                    cachingDatabase.loadPlayerRecord(player, externalDatabase.fetchPlayerRecordAsync(player).get());
-                }
-            } catch (ExecutionException | InterruptedException e) {
-                LOGGER.severe("Error with MongoDB: " + e);
-            }
+        } catch (ExecutionException | InterruptedException e) {
+            logger.severe("Error with MongoDB: " + e);
         }
     }
 
     public void cachePlayer(Player player) {
-        PlayerInfo playerInfo = cachingDatabase.fetchPlayerRecord(player);
-
-        if (Objects.equals(backend, Backend.MONGODB)) {
-            mongoDBManager.updatePlayerRecordAsync(playerInfo);
-        } else if (Objects.equals(backend, Backend.EXTERNAL)) {
-            externalDatabase.updatePlayerRecordAsync(playerInfo);
-        }
-    }
-
-    public void onPlayerLeave(Player player) {
-        cachePlayer(player);
+        PlayerInfo playerInfo = this.fetchPlayerRecord(player);
+        mongoDatabase.updatePlayerRecordAsync(playerInfo);
     }
 
     public void cachePlayers(Collection<Player> players) {
         List<PlayerInfo> playerInfoList = players
                 .stream()
-                .map(cachingDatabase::fetchPlayerRecord).toList();
+                .map(this::fetchPlayerRecord).toList();
 
         List<CompletableFuture<Void>> updateFutures = new ArrayList<>();
 
         for (PlayerInfo playerInfo : playerInfoList) {
-            CompletableFuture<Void> updateFuture = null;
-            if (Objects.equals(backend, Backend.MONGODB)) {
-                updateFuture = mongoDBManager.updatePlayerRecordAsync(playerInfo);
-            } else if (Objects.equals(backend, Backend.EXTERNAL)) {
-                updateFuture = externalDatabase.updatePlayerRecordAsync(playerInfo);
-            }
-
+            CompletableFuture<Void> updateFuture = mongoDatabase.updatePlayerRecordAsync(playerInfo);
             updateFutures.add(updateFuture);
         }
 
         CompletableFuture.allOf(updateFutures.toArray(new CompletableFuture[0])).join();
-    }
-
-    public void onServerStop() {
-        cachePlayers((Collection<Player>) plugin.getServer().getOnlinePlayers());
     }
 }

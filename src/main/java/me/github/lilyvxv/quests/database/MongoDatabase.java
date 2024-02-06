@@ -1,34 +1,37 @@
-package me.github.lilyvxv.quests.database.mongodb;
+package me.github.lilyvxv.quests.database;
 
-import com.mongodb.*;
-import com.mongodb.client.*;
+import com.mongodb.ConnectionString;
+import com.mongodb.MongoClientSettings;
+import com.mongodb.ServerApi;
+import com.mongodb.ServerApiVersion;
+import com.mongodb.client.FindIterable;
+import com.mongodb.client.MongoClient;
+import com.mongodb.client.MongoClients;
+import com.mongodb.client.MongoCollection;
 import com.mongodb.client.model.UpdateOptions;
 import me.github.lilyvxv.quests.structs.PlayerInfo;
 import org.bson.Document;
 import org.bukkit.entity.Player;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.logging.Level;
-import java.util.logging.Logger;
 
-import static me.github.lilyvxv.quests.Quests.LOGGER;
+import static me.github.lilyvxv.quests.Quests.logger;
 
-public class MongoDBManager {
-
-    private MongoCollection<Document> mongoCollection;
+public class MongoDatabase {
 
     private final String databaseName;
     private final String collectionName;
+    private MongoCollection<Document> mongoCollection;
 
-    public MongoDBManager(String connectionString, String databaseName, String collectionName) {
+    public MongoDatabase(String connectionString, String databaseName, String collectionName) {
         this.databaseName = databaseName;
         this.collectionName = collectionName;
-
-        // Lower the verbosity of the MongoDB driver's logger
-        Logger logger = Logger.getLogger("org.mongodb");
-        logger.setLevel(Level.SEVERE);
 
         // Build the database connection and connect to it
         ServerApi serverApi = ServerApi.builder()
@@ -44,7 +47,7 @@ public class MongoDBManager {
         try {
             mongoClient = MongoClients.create(settings);
         } catch (Exception e) {
-            LOGGER.warning("Error creating MongoClient: " + e);
+            logger.warning("Error creating MongoClient: " + e);
             throw new RuntimeException("MongoClient initialization error", e);
         }
 
@@ -58,7 +61,7 @@ public class MongoDBManager {
 
         CompletableFuture.runAsync(() -> {
             PlayerInfo playerInfo = new PlayerInfo(playerUUID, new ArrayList<>(), new ArrayList<>());
-            List<Document> documents = Collections.singletonList(playerInfo.toDocument());
+            List<Document> documents = Collections.singletonList(Converters.playerInfoToDocument(playerInfo));
             mongoCollection.insertMany(documents);
         });
     }
@@ -72,7 +75,7 @@ public class MongoDBManager {
             Document playerRecord = queryResult.first();
 
             if (playerRecord != null) {
-                return PlayerInfo.fromDocument(playerRecord);
+                return Converters.playerInfoFromDocument(playerRecord);
             }
 
             return null;
@@ -83,7 +86,7 @@ public class MongoDBManager {
         return CompletableFuture.runAsync(() -> {
             UUID playerUUID = playerInfo.playerUUID;
             Document filter = new Document("playerUUID", playerUUID.toString());
-            Document update = new Document("$set", playerInfo.toDocument());
+            Document update = new Document("$set", Converters.playerInfoToDocument(playerInfo));
 
             UpdateOptions options = new UpdateOptions();
             mongoCollection.updateOne(filter, update, options);
@@ -97,7 +100,6 @@ public class MongoDBManager {
         return CompletableFuture.supplyAsync(() -> {
             Document collectionQuery = new Document("playerUUID", playerUUID.toString());
             long documentCount = mongoCollection.countDocuments(collectionQuery);
-            LOGGER.info("document count: " + documentCount);
             return documentCount != 0;
         });
     }
@@ -106,21 +108,21 @@ public class MongoDBManager {
         CompletableFuture.runAsync(() -> {
             try {
                 // Find our database and collection
-                MongoDatabase mongoDatabase = mongoClient.getDatabase(databaseName);
+                com.mongodb.client.MongoDatabase mongoDatabase = mongoClient.getDatabase(databaseName);
 
                 if (!databaseExistsAsync(mongoClient, databaseName).get()) {
-                    LOGGER.info(String.format("Database %s does not exist, creating it now", databaseName));
+                    logger.info(String.format("Database %s does not exist, creating it now", databaseName));
                     mongoDatabase.createCollection(collectionName);
                 }
 
                 mongoCollection = mongoDatabase.getCollection(collectionName);
 
                 if (!collectionExistsAsync(mongoDatabase, collectionName).get()) {
-                    LOGGER.info(String.format("Collection %s does not exist, creating it now", collectionName));
+                    logger.info(String.format("Collection %s does not exist, creating it now", collectionName));
                     mongoDatabase.createCollection(collectionName);
                 }
             } catch (InterruptedException | ExecutionException e) {
-                LOGGER.log(Level.SEVERE, "An exception was thrown whilst setting up the database:", e);
+                logger.log(Level.SEVERE, "An exception was thrown whilst setting up the database:", e);
             }
         });
     }
@@ -137,7 +139,7 @@ public class MongoDBManager {
         });
     }
 
-    public CompletableFuture<Boolean> collectionExistsAsync(MongoDatabase mongoDatabase, String collectionName) {
+    public CompletableFuture<Boolean> collectionExistsAsync(com.mongodb.client.MongoDatabase mongoDatabase, String collectionName) {
         return CompletableFuture.supplyAsync(() -> {
             // Check if a collection exists in a database
             for (String collName : mongoDatabase.listCollectionNames()) {

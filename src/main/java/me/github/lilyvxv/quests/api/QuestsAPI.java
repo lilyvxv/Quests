@@ -1,5 +1,6 @@
 package me.github.lilyvxv.quests.api;
 
+import me.github.lilyvxv.quests.Quests;
 import me.github.lilyvxv.quests.structs.PlayerInfo;
 import me.github.lilyvxv.quests.structs.QuestInfo;
 import me.github.lilyvxv.quests.util.PlayerUtil;
@@ -15,11 +16,11 @@ public interface QuestsAPI {
     }
 
     default void registerQuest(QuestInfo questInfo) {
-        CONFIG.addQuest(questInfo);
+        questsConfig.addQuest(questInfo);
     }
 
     default void registerDatabase(Database database) {
-        CONFIG.externalDatabase = database;
+        Quests.database = database;
     }
 
     default void sendPlayerMessage(Player player, Component message) {
@@ -27,22 +28,22 @@ public interface QuestsAPI {
     }
 
     default PlayerInfo fetchPlayer(Player player) {
-        return cachingDatabase.fetchPlayerRecord(player);
+        return database.fetchPlayerRecord(player);
     }
 
     default boolean playerHasQuestEnabled(Player player, QuestInfo questInfo) {
-        return cachingDatabase.playerHasQuestEnabled(player, questInfo);
+        return database.playerHasQuestEnabled(player, questInfo);
     }
 
     default void updateQuestProgress(Player player, QuestInfo questInfo, double progress) {
-        cachingDatabase.updateQuestProgress(player, questInfo, progress);
+        database.updateQuestProgress(player, questInfo, progress);
     }
 
     default QuestInfo getQuestFromPlayer(Player player, QuestInfo questInfo) {
-        return cachingDatabase.getQuestFromPlayer(player, questInfo);
+        return database.getQuestFromPlayer(player, questInfo);
     }
 
     default void completeQuest(Player player, QuestInfo questInfo) {
-        cachingDatabase.completeQuest(player, questInfo);
+        database.completeQuest(player, questInfo);
     }
 }
