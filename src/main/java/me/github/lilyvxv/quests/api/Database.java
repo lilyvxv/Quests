@@ -10,8 +10,6 @@ import java.util.concurrent.ConcurrentHashMap;
 
 public interface Database {
 
-    void register();
-
     // Player cache methods and fields
     Map<UUID, PlayerInfo> playerInfoCache = new ConcurrentHashMap<>();
 
